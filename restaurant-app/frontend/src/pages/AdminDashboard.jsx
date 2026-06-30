@@ -3,8 +3,15 @@ import { motion } from 'framer-motion';
 import { gsap } from 'gsap';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { UtensilsCrossed, ShoppingBag, CalendarDays, Users, LogOut, ChefHat, TrendingUp, Clock } from 'lucide-react';
+import {
+  UtensilsCrossed, ShoppingBag, CalendarDays, Users,
+  LogOut, ChefHat, TrendingUp, Clock
+} from 'lucide-react';
 import AnimatedBackground from '../components/AnimatedBackground';
+import OrdersManager from '../components/OrdersManager';
+import ReservationsManager from '../components/ReservationsManager';
+import StaffManager from '../components/StaffManager';
+import CustomersManager from '../components/CustomersManager';
 import toast from 'react-hot-toast';
 
 const API = 'http://localhost:5000/api';
@@ -44,7 +51,7 @@ export default function AdminDashboard() {
         reservations: reservRes.data.length,
         customers: custRes.data.length,
       });
-    } catch (err) {
+    } catch {
       toast.error('Failed to load data');
     }
   };
@@ -55,133 +62,166 @@ export default function AdminDashboard() {
   };
 
   const statCards = [
-    { label: 'Menu Items', value: stats.menu, icon: UtensilsCrossed, color: 'from-orange-500/20 to-red-500/20', glow: 'glow-orange', iconColor: 'text-orange-400' },
-    { label: 'Total Orders', value: stats.orders, icon: ShoppingBag, color: 'from-blue-500/20 to-cyan-500/20', glow: 'glow-blue', iconColor: 'text-blue-400' },
-    { label: 'Reservations', value: stats.reservations, icon: CalendarDays, color: 'from-purple-500/20 to-pink-500/20', glow: 'glow-purple', iconColor: 'text-purple-400' },
-    { label: 'Customers', value: stats.customers, icon: Users, color: 'from-green-500/20 to-emerald-500/20', glow: 'glow-green', iconColor: 'text-green-400' },
+    { label: 'Menu Items', value: stats.menu, icon: UtensilsCrossed, bg: 'rgba(251,146,60,0.12)', iconColor: '#fb923c' },
+    { label: 'Total Orders', value: stats.orders, icon: ShoppingBag, bg: 'rgba(59,130,246,0.12)', iconColor: '#60a5fa' },
+    { label: 'Reservations', value: stats.reservations, icon: CalendarDays, bg: 'rgba(168,85,247,0.12)', iconColor: '#a78bfa' },
+    { label: 'Customers', value: stats.customers, icon: Users, bg: 'rgba(34,197,94,0.12)', iconColor: '#4ade80' },
   ];
 
-  const tabs = ['overview', 'menu', 'orders', 'reservations', 'staff'];
+  const tabs = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'menu', label: 'Menu' },
+    { key: 'orders', label: 'Orders' },
+    { key: 'reservations', label: 'Reservations' },
+    { key: 'staff', label: 'Staff' },
+    { key: 'customers', label: 'Customers' },
+  ];
 
   return (
-    <div className="min-h-screen relative">
+    <div style={{ minHeight: '100vh', position: 'relative' }}>
       <AnimatedBackground />
-      <div className="relative z-10">
+      <div style={{ position: 'relative', zIndex: 10 }}>
 
         {/* Header */}
-        <div ref={headerRef} className="glass border-b border-white/10 px-6 py-4">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl liquid-btn flex items-center justify-center">
-                <ChefHat size={20} className="text-white" />
+        <div ref={headerRef} className="glass"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '14px 24px' }}>
+          <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div className="liquid-btn"
+                style={{ width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ChefHat size={20} color="white" />
               </div>
               <div>
-                <h1 className="text-white font-bold text-lg">RestoPro</h1>
-                <p className="text-white/40 text-xs">Admin Dashboard</p>
+                <p style={{ color: 'white', fontWeight: 700, fontSize: '17px', lineHeight: 1 }}>RestoPro</p>
+                <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '11px' }}>Admin Dashboard</p>
               </div>
             </div>
-            <motion.button onClick={logout} whileTap={{ scale: 0.95 }}
-              className="flex items-center gap-2 glass px-4 py-2 rounded-xl text-white/60 hover:text-white text-sm transition-colors">
-              <LogOut size={16} /> Logout
+            <motion.button onClick={logout} whileTap={{ scale: 0.95 }} className="glass"
+              style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '8px 16px', borderRadius: '11px', color: 'rgba(255,255,255,0.5)', fontSize: '13px', cursor: 'pointer', border: 'none' }}>
+              <LogOut size={15} /> Logout
             </motion.button>
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Main Content */}
+        <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '28px 24px' }}>
 
           {/* Stat Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '28px' }}>
             {statCards.map((card, i) => (
               <motion.div key={card.label}
-                initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1, duration: 0.5 }}
-                className={`glass-card rounded-2xl p-5 bg-gradient-to-br ${card.color} ${card.glow} cursor-pointer`}
-                whileHover={{ scale: 1.03, y: -4 }}>
-                <div className="flex items-center justify-between mb-3">
-                  <card.icon size={22} className={card.iconColor} />
-                  <TrendingUp size={14} className="text-white/20" />
+                initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.08 }}
+                className="glass-card"
+                whileHover={{ y: -5, scale: 1.02 }}
+                style={{ borderRadius: '18px', padding: '20px', background: card.bg, cursor: 'pointer' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '11px', background: `${card.bg}`, border: `1px solid ${card.iconColor}30`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <card.icon size={20} color={card.iconColor} />
+                  </div>
+                  <TrendingUp size={14} color="rgba(255,255,255,0.15)" />
                 </div>
-                <p className="text-3xl font-bold text-white">{card.value}</p>
-                <p className="text-white/50 text-xs mt-1">{card.label}</p>
+                <p style={{ color: 'white', fontSize: '30px', fontWeight: 800, lineHeight: 1 }}>{card.value}</p>
+                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', marginTop: '5px' }}>{card.label}</p>
               </motion.div>
             ))}
           </div>
 
           {/* Tabs */}
-          <div className="glass rounded-2xl p-1 flex gap-1 mb-6 w-fit">
-            {tabs.map(tab => (
-              <motion.button key={tab} onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium capitalize transition-all ${
-                  activeTab === tab ? 'liquid-btn text-white' : 'text-white/40 hover:text-white/70'
-                }`}
-                whileTap={{ scale: 0.95 }}>
-                {tab}
+          <div className="glass"
+            style={{ display: 'inline-flex', gap: '4px', padding: '4px', borderRadius: '14px', marginBottom: '24px' }}>
+            {tabs.map(({ key, label }) => (
+              <motion.button key={key} onClick={() => setActiveTab(key)} whileTap={{ scale: 0.95 }}
+                className={activeTab === key ? 'liquid-btn' : ''}
+                style={{
+                  padding: '9px 18px', borderRadius: '11px', fontSize: '13px', fontWeight: 500,
+                  color: activeTab === key ? 'white' : 'rgba(255,255,255,0.4)',
+                  cursor: 'pointer', border: 'none',
+                  background: activeTab === key ? undefined : 'transparent',
+                  transition: 'color 0.2s'
+                }}>
+                {label}
               </motion.button>
             ))}
           </div>
 
-          {/* Overview Tab */}
+          {/* Tab Content */}
           {activeTab === 'overview' && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid lg:grid-cols-2 gap-6">
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
 
               {/* Recent Orders */}
-              <div className="glass-card rounded-2xl p-6">
-                <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-                  <ShoppingBag size={18} className="text-blue-400" /> Recent Orders
+              <div className="glass-card" style={{ borderRadius: '20px', padding: '22px' }}>
+                <h3 style={{ color: 'white', fontWeight: 600, fontSize: '15px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ShoppingBag size={17} color="#60a5fa" /> Recent Orders
                 </h3>
-                <div className="space-y-3">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {orders.slice(0, 5).map((order, i) => (
-                    <motion.div key={order.id} initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}
-                      className="glass rounded-xl p-3 flex items-center justify-between">
+                    <motion.div key={order.id} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.08 }} className="glass"
+                      style={{ borderRadius: '12px', padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div>
-                        <p className="text-white text-sm font-medium">{order.customer_name || 'Customer'}</p>
-                        <p className="text-white/40 text-xs flex items-center gap-1">
+                        <p style={{ color: 'white', fontSize: '13px', fontWeight: 500 }}>
+                          {order.customer_name || `Customer #${order.customer_id || order.id}`}
+                        </p>
+                        <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <Clock size={10} /> Order #{order.id}
                         </p>
                       </div>
-                      <span className={`text-xs px-3 py-1 rounded-full ${
-                        order.status === 'COMPLETED' ? 'bg-green-500/20 text-green-400' :
-                        order.status === 'PREPARING' ? 'bg-orange-500/20 text-orange-400' :
-                        order.status === 'CANCELLED' ? 'bg-red-500/20 text-red-400' :
-                        'bg-blue-500/20 text-blue-400'
-                      }`}>{order.status || 'Pending'}</span>
+                      <span style={{
+                        fontSize: '11px', padding: '4px 10px', borderRadius: '20px',
+                        background: order.status === 'COMPLETED' ? 'rgba(34,197,94,0.15)' :
+                          order.status === 'PREPARING' ? 'rgba(251,146,60,0.15)' :
+                          order.status === 'CANCELLED' ? 'rgba(239,68,68,0.15)' : 'rgba(59,130,246,0.15)',
+                        color: order.status === 'COMPLETED' ? '#4ade80' :
+                          order.status === 'PREPARING' ? '#fb923c' :
+                          order.status === 'CANCELLED' ? '#f87171' : '#60a5fa'
+                      }}>
+                        {order.status || 'Pending'}
+                      </span>
                     </motion.div>
                   ))}
-                  {orders.length === 0 && <p className="text-white/30 text-sm text-center py-4">No orders yet</p>}
+                  {orders.length === 0 && (
+                    <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '13px', textAlign: 'center', padding: '20px 0' }}>No orders yet</p>
+                  )}
                 </div>
               </div>
 
-              {/* Menu Items */}
-              <div className="glass-card rounded-2xl p-6">
-                <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-                  <UtensilsCrossed size={18} className="text-orange-400" /> Menu Items
+              {/* Menu Items Preview */}
+              <div className="glass-card" style={{ borderRadius: '20px', padding: '22px' }}>
+                <h3 style={{ color: 'white', fontWeight: 600, fontSize: '15px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <UtensilsCrossed size={17} color="#fb923c" /> Menu Items
                 </h3>
-                <div className="space-y-3">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {menuItems.slice(0, 5).map((item, i) => (
-                    <motion.div key={item.id} initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}
-                      className="glass rounded-xl p-3 flex items-center justify-between">
+                    <motion.div key={item.id} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.08 }} className="glass"
+                      style={{ borderRadius: '12px', padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div>
-                        <p className="text-white text-sm font-medium">{item.name}</p>
-                        <p className="text-white/40 text-xs">{item.category}</p>
+                        <p style={{ color: 'white', fontSize: '13px', fontWeight: 500 }}>{item.name}</p>
+                        <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px', marginTop: '2px' }}>{item.category}</p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-orange-400 text-sm font-semibold">Rs. {item.price}</p>
-                        <span className={`text-xs ${item.is_available ? 'text-green-400' : 'text-red-400'}`}>
+                      <div style={{ textAlign: 'right' }}>
+                        <p style={{ color: '#fb923c', fontSize: '13px', fontWeight: 600 }}>Rs. {item.price}</p>
+                        <span style={{ fontSize: '11px', color: item.is_available ? '#4ade80' : '#f87171' }}>
                           {item.is_available ? '● Available' : '● Unavailable'}
                         </span>
                       </div>
                     </motion.div>
                   ))}
-                  {menuItems.length === 0 && <p className="text-white/30 text-sm text-center py-4">No menu items yet</p>}
+                  {menuItems.length === 0 && (
+                    <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '13px', textAlign: 'center', padding: '20px 0' }}>No menu items yet</p>
+                  )}
                 </div>
               </div>
             </motion.div>
           )}
 
-          {/* Menu Tab */}
           {activeTab === 'menu' && <MenuManager token={token} />}
+          {activeTab === 'orders' && <OrdersManager token={token} />}
+          {activeTab === 'reservations' && <ReservationsManager token={token} />}
+          {activeTab === 'staff' && <StaffManager token={token} />}
+          {activeTab === 'customers' && <CustomersManager token={token} />}
 
         </div>
       </div>
@@ -189,7 +229,7 @@ export default function AdminDashboard() {
   );
 }
 
-// Menu Manager Component
+// ── Menu Manager ──────────────────────────────────────────────
 function MenuManager({ token }) {
   const [items, setItems] = useState([]);
   const [form, setForm] = useState({ name: '', description: '', price: '', category: '', is_available: true });
@@ -198,14 +238,14 @@ function MenuManager({ token }) {
   useEffect(() => { fetchMenu(); }, []);
 
   const fetchMenu = async () => {
-    const res = await axios.get('http://localhost:5000/api/menu');
+    const res = await axios.get(`${API}/menu`);
     setItems(res.data);
   };
 
   const handleAdd = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/api/menu', form, { headers });
+      await axios.post(`${API}/menu`, form, { headers });
       toast.success('Menu item added!');
       fetchMenu();
       setForm({ name: '', description: '', price: '', category: '', is_available: true });
@@ -214,55 +254,68 @@ function MenuManager({ token }) {
 
   const handleDelete = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/api/menu/${id}`, { headers });
+      await axios.delete(`${API}/menu/${id}`, { headers });
       toast.success('Item deleted');
       fetchMenu();
     } catch { toast.error('Failed to delete'); }
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid lg:grid-cols-3 gap-6">
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+      style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '20px' }}>
+
       {/* Add Form */}
-      <div className="glass-card rounded-2xl p-6">
-        <h3 className="text-white font-semibold mb-4">Add Menu Item</h3>
-        <form onSubmit={handleAdd} className="space-y-3">
-          {['name', 'description', 'price', 'category'].map(field => (
-            <input key={field} placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
-              value={form[field]} onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-              className="input-glass w-full px-4 py-3 rounded-xl text-sm" required={field !== 'description'} />
+      <div className="glass-card" style={{ borderRadius: '20px', padding: '22px', alignSelf: 'start' }}>
+        <h3 style={{ color: 'white', fontWeight: 600, fontSize: '15px', marginBottom: '16px' }}>Add Menu Item</h3>
+        <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {[
+            { key: 'name', placeholder: 'Dish Name', required: true },
+            { key: 'description', placeholder: 'Description', required: false },
+            { key: 'price', placeholder: 'Price (Rs.)', required: true },
+            { key: 'category', placeholder: 'Category', required: true },
+          ].map(({ key, placeholder, required }) => (
+            <input key={key} placeholder={placeholder} value={form[key]}
+              onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+              required={required} className="input-glass"
+              style={{ padding: '12px 14px', borderRadius: '12px', fontSize: '13px' }} />
           ))}
-          <label className="flex items-center gap-2 text-white/60 text-sm">
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'rgba(255,255,255,0.5)', fontSize: '13px', cursor: 'pointer' }}>
             <input type="checkbox" checked={form.is_available}
               onChange={(e) => setForm({ ...form, is_available: e.target.checked })}
-              className="w-4 h-4 accent-orange-500" />
-            Available
+              style={{ width: '15px', height: '15px', accentColor: '#fb923c' }} />
+            Available on menu
           </label>
-          <motion.button type="submit" whileTap={{ scale: 0.97 }}
-            className="liquid-btn w-full py-3 rounded-xl text-white font-medium text-sm">
+          <motion.button type="submit" whileTap={{ scale: 0.97 }} className="liquid-btn"
+            style={{ padding: '12px', borderRadius: '12px', color: 'white', fontWeight: 600, fontSize: '13px', cursor: 'pointer', border: 'none' }}>
             Add Item
           </motion.button>
         </form>
       </div>
 
       {/* Items Grid */}
-      <div className="lg:col-span-2 grid sm:grid-cols-2 gap-4 content-start">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '14px', alignContent: 'start' }}>
         {items.map((item, i) => (
-          <motion.div key={item.id} initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}
-            className="glass-card rounded-2xl p-4" whileHover={{ y: -4 }}>
-            <div className="flex justify-between items-start mb-2">
-              <h4 className="text-white font-medium text-sm">{item.name}</h4>
-              <motion.button onClick={() => handleDelete(item.id)} whileTap={{ scale: 0.9 }}
-                className="text-red-400/60 hover:text-red-400 text-xs transition-colors">✕</motion.button>
+          <motion.div key={item.id} className="glass-card"
+            initial={{ opacity: 0, scale: 0.93 }} animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: i * 0.04 }} whileHover={{ y: -5 }}
+            style={{ borderRadius: '18px', padding: '18px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+              <h4 style={{ color: 'white', fontWeight: 600, fontSize: '14px', flex: 1, marginRight: '8px' }}>{item.name}</h4>
+              <motion.button onClick={() => handleDelete(item.id)} whileTap={{ scale: 0.85 }}
+                style={{ width: '26px', height: '26px', borderRadius: '8px', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>
+                ✕
+              </motion.button>
             </div>
-            <p className="text-white/40 text-xs mb-2">{item.description}</p>
-            <div className="flex justify-between items-center">
-              <span className="text-orange-400 font-semibold text-sm">Rs. {item.price}</span>
-              <span className={`text-xs px-2 py-1 rounded-full ${item.is_available ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+            {item.description && (
+              <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '12px', marginBottom: '12px', lineHeight: 1.4 }}>{item.description}</p>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <span style={{ color: '#fb923c', fontWeight: 700, fontSize: '15px' }}>Rs. {item.price}</span>
+              <span style={{ fontSize: '11px', padding: '3px 9px', borderRadius: '20px', background: item.is_available ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)', color: item.is_available ? '#4ade80' : '#f87171' }}>
                 {item.is_available ? 'Available' : 'Unavailable'}
               </span>
             </div>
-            <p className="text-white/30 text-xs mt-1">{item.category}</p>
+            <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '11px' }}>{item.category}</p>
           </motion.div>
         ))}
       </div>
