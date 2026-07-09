@@ -12,7 +12,8 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
     const allowed = allowedRoles.map(normalize);
     const ok =
       allowed.includes(role) ||
-      (allowed.includes('staff') && ['waiter', 'chef', 'manager', 'cashier', 'head waiter'].includes(role));
+      (allowed.includes('staff') &&
+        ['waiter', 'chef', 'manager', 'cashier', 'head waiter'].includes(role));
 
     if (!ok) return <Navigate to="/" replace />;
   }
