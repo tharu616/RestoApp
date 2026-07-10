@@ -34,7 +34,7 @@ export default function Login() {
       localStorage.setItem('accessToken', res.data.accessToken);
       localStorage.setItem('refreshToken', res.data.refreshToken);
       localStorage.setItem('role', String(res.data.role || '').toLowerCase());
-      localStorage.setItem('userName', res.data.name || '');
+     localStorage.setItem('userName', res.data.name || '');
 
       toast.success(`Welcome back, ${res.data.name}!`);
 

@@ -8,6 +8,13 @@ import api from '../api/axios';
 
 const DELIVERY_FEE = 200;
 const normalize = (v) => String(v || '').toLowerCase();
+const orderPaymentLabel = (order) => {
+  const pm = normalize(order.payment_method || order.paymentMethod);
+  const dm = normalize(order.delivery_method || order.deliveryMethod);
+  if (pm === 'cash') return dm === 'delivery' ? 'Cash on Delivery' : 'Cash';
+  if (pm === 'card') return 'Card';
+  return order.payment_method || order.paymentMethod || '—';
+};
 
 export default function CustomerDashboard() {
   const [activeTab, setActiveTab] = useState('menu');
@@ -78,6 +85,16 @@ export default function CustomerDashboard() {
   const discount = subtotal >= 4000 ? Math.round(subtotal * 0.1) : 0;
   const total = Math.max(0, subtotal + deliveryFee + tax - discount);
 
+  const paymentOptions = deliveryMethod === 'delivery'
+    ? [
+        { key: 'card', label: 'Card', icon: CreditCard },
+        { key: 'cash', label: 'Cash on Delivery', icon: Banknote },
+      ]
+    : [
+        { key: 'card', label: 'Card', icon: CreditCard },
+        { key: 'cash', label: 'Cash', icon: Banknote },
+      ];
+
   const buildOrderPayload = (paymentType) => ({
     customer_id: Number(localStorage.getItem('userId')) || undefined,
     items: cart.map((item) => ({
@@ -102,7 +119,7 @@ export default function CustomerDashboard() {
         toast.success('Order placed successfully');
         clearCart();
         setActiveTab('orders');
-        fetchData();
+        await fetchData();
         return;
       }
       const res = await api.post('/payments/stripe/create-checkout-session', {
@@ -191,19 +208,7 @@ export default function CustomerDashboard() {
 
           <div className="glass" style={{ display: 'inline-flex', gap: '4px', padding: '4px', borderRadius: '14px', marginBottom: '24px', flexWrap: 'wrap' }}>
             {tabs.map(({ key, label, icon: Icon }) => (
-              <motion.button
-                key={key}
-                onClick={() => setActiveTab(key)}
-                whileTap={{ scale: 0.95 }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '7px',
-                  padding: '9px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: 500,
-                  cursor: 'pointer', border: 'none',
-                  background: activeTab === key ? 'linear-gradient(135deg,#fb923c,#f43f5e)' : 'transparent',
-                  color: activeTab === key ? 'white' : 'rgba(255,255,255,0.4)',
-                  boxShadow: activeTab === key ? '0 4px 14px rgba(251,146,60,0.3)' : 'none',
-                }}
-              >
+              <motion.button key={key} onClick={() => setActiveTab(key)} whileTap={{ scale: 0.95 }} style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '9px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', border: 'none', background: activeTab === key ? 'linear-gradient(135deg,#fb923c,#f43f5e)' : 'transparent', color: activeTab === key ? 'white' : 'rgba(255,255,255,0.4)', boxShadow: activeTab === key ? '0 4px 14px rgba(251,146,60,0.3)' : 'none' }}>
                 <Icon size={15} /> {label}
               </motion.button>
             ))}
@@ -213,12 +218,7 @@ export default function CustomerDashboard() {
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18 }}>
                 {categories.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setCategory(c)}
-                    className="glass"
-                    style={{ padding: '8px 14px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.08)', background: category === c ? 'linear-gradient(135deg,#fb923c,#f43f5e)' : 'rgba(255,255,255,0.04)', color: 'white', cursor: 'pointer' }}
-                  >
+                  <button key={c} onClick={() => setCategory(c)} className="glass" style={{ padding: '8px 14px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.08)', background: category === c ? 'linear-gradient(135deg,#fb923c,#f43f5e)' : 'rgba(255,255,255,0.04)', color: 'white', cursor: 'pointer' }}>
                     {c === 'all' ? 'All' : c}
                   </button>
                 ))}
@@ -226,28 +226,14 @@ export default function CustomerDashboard() {
 
               <div style={{ position: 'relative', marginBottom: '20px', maxWidth: '340px' }}>
                 <Search size={15} style={{ position: 'absolute', left: '13px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }} />
-                <input
-                  placeholder="Search menu..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="input-glass"
-                  style={{ padding: '11px 14px 11px 38px', borderRadius: '12px', fontSize: '13px' }}
-                />
+                <input placeholder="Search menu..." value={search} onChange={(e) => setSearch(e.target.value)} className="input-glass" style={{ padding: '11px 14px 11px 38px', borderRadius: '12px', fontSize: '13px' }} />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: '16px' }}>
                 {filteredMenu.map((item, i) => {
                   const available = item.is_available === undefined ? true : !!item.is_available;
                   return (
-                    <motion.div
-                      key={item.id}
-                      className="glass-card"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.04 }}
-                      whileHover={{ y: -5, scale: 1.02 }}
-                      style={{ borderRadius: '18px', padding: '20px', opacity: available ? 1 : 0.7, position: 'relative' }}
-                    >
+                    <motion.div key={item.id} className="glass-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} whileHover={{ y: -5, scale: 1.02 }} style={{ borderRadius: '18px', padding: '20px', opacity: available ? 1 : 0.7, position: 'relative' }}>
                       <div style={{ position: 'absolute', right: 14, top: 14, display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                         <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '20px', background: 'rgba(251,146,60,0.14)', color: '#fb923c' }}>{item.category || 'Food'}</span>
                         <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '20px', background: available ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: available ? '#4ade80' : '#f87171' }}>{available ? 'Available' : 'Unavailable'}</span>
@@ -259,23 +245,12 @@ export default function CustomerDashboard() {
                       <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '12px', marginBottom: '12px', lineHeight: 1.4 }}>{item.description || 'Freshly prepared item'}</p>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                         <span style={{ color: '#fb923c', fontWeight: 700, fontSize: '16px' }}>Rs. {Number(item.price).toFixed(2)}</span>
-                        <button
-                          disabled={!available}
-                          onClick={() => addToCart(item)}
-                          style={{ padding: '8px 12px', borderRadius: '10px', border: 'none', cursor: available ? 'pointer' : 'not-allowed', color: 'white', background: 'linear-gradient(135deg,#fb923c,#f43f5e)', opacity: available ? 1 : 0.5 }}
-                        >
-                          Add
-                        </button>
+                        <button disabled={!available} onClick={() => addToCart(item)} style={{ padding: '8px 12px', borderRadius: '10px', border: 'none', cursor: available ? 'pointer' : 'not-allowed', color: 'white', background: 'linear-gradient(135deg,#fb923c,#f43f5e)', opacity: available ? 1 : 0.5 }}>Add</button>
                       </div>
                     </motion.div>
                   );
                 })}
-                {filteredMenu.length === 0 && (
-                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '48px 0' }}>
-                    <UtensilsCrossed size={40} color="rgba(255,255,255,0.1)" style={{ margin: '0 auto 12px' }} />
-                    <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '14px' }}>No items found</p>
-                  </div>
-                )}
+                {filteredMenu.length === 0 && <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '48px 0' }}><UtensilsCrossed size={40} color="rgba(255,255,255,0.1)" style={{ margin: '0 auto 12px' }} /><p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '14px' }}>No items found</p></div>}
               </div>
             </motion.div>
           )}
@@ -283,84 +258,29 @@ export default function CustomerDashboard() {
           {activeTab === 'cart' && (
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
               <div className="glass-card" style={{ borderRadius: '18px', padding: '22px', marginBottom: '18px' }}>
-                <h3 style={{ color: 'white', fontWeight: 600, fontSize: '15px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <ShoppingBag size={17} color="#fb923c" /> Your Cart
-                </h3>
-                {cart.length === 0 ? (
-                  <p style={{ color: 'rgba(255,255,255,0.35)' }}>No items in cart yet.</p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {cart.map((item) => (
-                      <div key={item.id} className="glass" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', borderRadius: '14px' }}>
-                        <div>
-                          <p style={{ color: 'white', fontWeight: 600 }}>{item.name}</p>
-                          <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: 12 }}>Rs. {item.price} x {item.qty}</p>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <button onClick={() => updateQty(item.id, -1)} style={{ width: 32, height: 32, borderRadius: 10, border: 'none', cursor: 'pointer', background: 'rgba(255,255,255,0.08)', color: 'white' }}><Minus size={14} /></button>
-                          <span style={{ color: 'white', minWidth: 18, textAlign: 'center' }}>{item.qty}</span>
-                          <button onClick={() => updateQty(item.id, 1)} style={{ width: 32, height: 32, borderRadius: 10, border: 'none', cursor: 'pointer', background: 'rgba(255,255,255,0.08)', color: 'white' }}><Plus size={14} /></button>
-                          <button onClick={() => removeItem(item.id)} style={{ width: 32, height: 32, borderRadius: 10, border: 'none', cursor: 'pointer', background: 'rgba(239,68,68,0.14)', color: '#f87171' }}><Trash2 size={14} /></button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                <h3 style={{ color: 'white', fontWeight: 600, fontSize: '15px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}><ShoppingBag size={17} color="#fb923c" /> Your Cart</h3>
+                {cart.length === 0 ? <p style={{ color: 'rgba(255,255,255,0.35)' }}>No items in cart yet.</p> : <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{cart.map((item) => <div key={item.id} className="glass" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', borderRadius: '14px' }}><div><p style={{ color: 'white', fontWeight: 600 }}>{item.name}</p><p style={{ color: 'rgba(255,255,255,0.38)', fontSize: 12 }}>Rs. {item.price} x {item.qty}</p></div><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><button onClick={() => updateQty(item.id, -1)} style={{ width: 32, height: 32, borderRadius: 10, border: 'none', cursor: 'pointer', background: 'rgba(255,255,255,0.08)', color: 'white' }}><Minus size={14} /></button><span style={{ color: 'white', minWidth: 18, textAlign: 'center' }}>{item.qty}</span><button onClick={() => updateQty(item.id, 1)} style={{ width: 32, height: 32, borderRadius: 10, border: 'none', cursor: 'pointer', background: 'rgba(255,255,255,0.08)', color: 'white' }}><Plus size={14} /></button><button onClick={() => removeItem(item.id)} style={{ width: 32, height: 32, borderRadius: 10, border: 'none', cursor: 'pointer', background: 'rgba(239,68,68,0.14)', color: '#f87171' }}><Trash2 size={14} /></button></div></div>)}</div>}</div>
 
               <div className="glass-card" style={{ borderRadius: '18px', padding: '22px' }}>
-                <h3 style={{ color: 'white', fontWeight: 600, fontSize: '15px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Truck size={17} color="#a78bfa" /> Delivery & Payment
-                </h3>
-
+                <h3 style={{ color: 'white', fontWeight: 600, fontSize: '15px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}><Truck size={17} color="#a78bfa" /> Delivery & Payment</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-                  <button type="button" onClick={() => setDeliveryMethod('delivery')} style={{ padding: '12px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: deliveryMethod === 'delivery' ? 'linear-gradient(135deg,#fb923c,#f43f5e)' : 'rgba(255,255,255,0.04)', color: 'white' }}>
-                    <Truck size={16} style={{ display: 'inline', marginRight: 6 }} /> Delivery
-                  </button>
-                  <button type="button" onClick={() => setDeliveryMethod('pickup')} style={{ padding: '12px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: deliveryMethod === 'pickup' ? 'linear-gradient(135deg,#fb923c,#f43f5e)' : 'rgba(255,255,255,0.04)', color: 'white' }}>
-                    <Package size={16} style={{ display: 'inline', marginRight: 6 }} /> Pickup
-                  </button>
+                  <button type="button" onClick={() => setDeliveryMethod('delivery')} style={{ padding: '12px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: deliveryMethod === 'delivery' ? 'linear-gradient(135deg,#fb923c,#f43f5e)' : 'rgba(255,255,255,0.04)', color: 'white' }}><Truck size={16} style={{ display: 'inline', marginRight: 6 }} /> Delivery</button>
+                  <button type="button" onClick={() => setDeliveryMethod('pickup')} style={{ padding: '12px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: deliveryMethod === 'pickup' ? 'linear-gradient(135deg,#fb923c,#f43f5e)' : 'rgba(255,255,255,0.04)', color: 'white' }}><Package size={16} style={{ display: 'inline', marginRight: 6 }} /> Pickup</button>
                 </div>
-
-                {deliveryMethod === 'delivery' && (
-                  <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
-                    <div style={{ position: 'relative' }}>
-                      <MapPin size={15} style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.35)' }} />
-                      <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Delivery address" className="input-glass" style={{ padding: '11px 14px 11px 38px', borderRadius: 12, fontSize: 13 }} />
-                    </div>
-                    <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" className="input-glass" style={{ padding: '11px 14px', borderRadius: 12, fontSize: 13 }} />
-                  </div>
-                )}
-
+                {deliveryMethod === 'delivery' && <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}><div style={{ position: 'relative' }}><MapPin size={15} style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.35)' }} /><input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Delivery address" className="input-glass" style={{ padding: '11px 14px 11px 38px', borderRadius: 12, fontSize: 13 }} /></div><input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" className="input-glass" style={{ padding: '11px 14px', borderRadius: 12, fontSize: 13 }} /></div>}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-                  <button type="button" onClick={() => setPaymentMethod('card')} style={{ padding: '12px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: paymentMethod === 'card' ? 'linear-gradient(135deg,#fb923c,#f43f5e)' : 'rgba(255,255,255,0.04)', color: 'white' }}>
-                    <CreditCard size={16} style={{ display: 'inline', marginRight: 6 }} /> Card
-                  </button>
-                  <button type="button" onClick={() => setPaymentMethod('cash')} style={{ padding: '12px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: paymentMethod === 'cash' ? 'linear-gradient(135deg,#fb923c,#f43f5e)' : 'rgba(255,255,255,0.04)', color: 'white' }}>
-                    <Banknote size={16} style={{ display: 'inline', marginRight: 6 }} /> Cash on Delivery
-                  </button>
+                  {paymentOptions.map(({ key, label, icon: Icon }) => <button key={key} type="button" onClick={() => setPaymentMethod(key)} style={{ padding: '12px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: paymentMethod === key ? 'linear-gradient(135deg,#fb923c,#f43f5e)' : 'rgba(255,255,255,0.04)', color: 'white' }}><Icon size={16} style={{ display: 'inline', marginRight: 6 }} /> {label}</button>)}
                 </div>
-
                 <div className="glass" style={{ padding: 16, borderRadius: 14, marginBottom: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, color: 'rgba(255,255,255,0.7)' }}><span>Subtotal</span><span>Rs. {subtotal.toFixed(2)}</span></div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, color: 'rgba(255,255,255,0.7)' }}><span>Delivery</span><span>Rs. {deliveryFee.toFixed(2)}</span></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, color: 'rgba(255,255,255,0.7)' }}><span>Tax</span><span>Rs. {tax.toFixed(2)}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'between', marginBottom: 8, color: 'rgba(255,255,255,0.7)' }}><span>Tax</span><span>Rs. {tax.toFixed(2)}</span></div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, color: 'rgba(255,255,255,0.7)' }}><span>Discount</span><span>- Rs. {discount.toFixed(2)}</span></div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', color: 'white', fontWeight: 700 }}><span>Total</span><span>Rs. {total.toFixed(2)}</span></div>
                 </div>
-
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <motion.button
-                    disabled={loading || !cart.length}
-                    onClick={placeOrder}
-                    whileTap={{ scale: 0.97 }}
-                    style={{ padding: '12px 24px', borderRadius: '12px', color: 'white', fontWeight: 600, fontSize: '13px', cursor: loading || !cart.length ? 'not-allowed' : 'pointer', border: 'none', background: 'linear-gradient(135deg,#fb923c,#f43f5e)', boxShadow: '0 4px 14px rgba(251,146,60,0.3)', opacity: loading || !cart.length ? 0.7 : 1 }}
-                  >
-                    {loading ? 'Processing...' : paymentMethod === 'card' ? 'Pay with Stripe' : 'Place COD Order'}
-                  </motion.button>
-                  <button onClick={clearCart} style={{ padding: '12px 24px', borderRadius: '12px', color: 'white', fontWeight: 600, fontSize: '13px', cursor: 'pointer', border: 'none', background: 'rgba(255,255,255,0.08)' }}>
-                    Clear Cart
-                  </button>
+                  <motion.button disabled={loading || !cart.length} onClick={placeOrder} whileTap={{ scale: 0.97 }} style={{ padding: '12px 24px', borderRadius: '12px', color: 'white', fontWeight: 600, fontSize: '13px', cursor: loading || !cart.length ? 'not-allowed' : 'pointer', border: 'none', background: 'linear-gradient(135deg,#fb923c,#f43f5e)', boxShadow: '0 4px 14px rgba(251,146,60,0.3)', opacity: loading || !cart.length ? 0.7 : 1 }}>{loading ? 'Processing...' : paymentMethod === 'card' ? 'Pay with Stripe' : 'Place COD Order'}</motion.button>
+                  <button onClick={clearCart} style={{ padding: '12px 24px', borderRadius: '12px', color: 'white', fontWeight: 600, fontSize: '13px', cursor: 'pointer', border: 'none', background: 'rgba(255,255,255,0.08)' }}>Clear Cart</button>
                 </div>
               </div>
             </motion.div>
@@ -369,12 +289,7 @@ export default function CustomerDashboard() {
           {activeTab === 'orders' && (
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {orders.length === 0 && (
-                  <div className="glass-card" style={{ borderRadius: '16px', padding: '48px', textAlign: 'center' }}>
-                    <ShoppingBag size={38} color="rgba(255,255,255,0.1)" style={{ margin: '0 auto 12px' }} />
-                    <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '14px' }}>No orders yet</p>
-                  </div>
-                )}
+                {orders.length === 0 && <div className="glass-card" style={{ borderRadius: '16px', padding: '48px', textAlign: 'center' }}><ShoppingBag size={38} color="rgba(255,255,255,0.1)" style={{ margin: '0 auto 12px' }} /><p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '14px' }}>No orders yet</p></div>}
                 {orders.map((order, i) => {
                   const sc = orderStatusStyle(order.status);
                   return (
@@ -386,13 +301,11 @@ export default function CustomerDashboard() {
                         <div>
                           <p style={{ color: 'white', fontWeight: 600, fontSize: '14px' }}>Order #{order.id}</p>
                           <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '12px', marginTop: '3px' }}>
-                            {order.customer_name || userName} · {order.delivery_method || order.deliveryMethod || 'delivery'} · Rs. {order.total_price || order.total || 0}
+                            {order.customer_name || userName} · {order.delivery_method || order.deliveryMethod || 'delivery'} · {orderPaymentLabel(order)} · Rs. {order.total_price || order.total || 0}
                           </p>
                         </div>
                       </div>
-                      <span style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '20px', background: sc.bg, color: sc.color, fontWeight: 500 }}>
-                        {order.status || 'Pending'}
-                      </span>
+                      <span style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '20px', background: sc.bg, color: sc.color, fontWeight: 500 }}>{order.status || 'Pending'}</span>
                     </motion.div>
                   );
                 })}
@@ -403,9 +316,7 @@ export default function CustomerDashboard() {
           {activeTab === 'reservations' && (
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
               <div className="glass-card" style={{ borderRadius: '18px', padding: '22px', marginBottom: '20px' }}>
-                <h3 style={{ color: 'white', fontWeight: 600, fontSize: '15px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <CalendarDays size={17} color="#a78bfa" /> Book a Table
-                </h3>
+                <h3 style={{ color: 'white', fontWeight: 600, fontSize: '15px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><CalendarDays size={17} color="#a78bfa" /> Book a Table</h3>
                 <form onSubmit={handleReservation}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                     {[
@@ -414,32 +325,11 @@ export default function CustomerDashboard() {
                       { key: 'date_time', placeholder: 'Date & Time', type: 'datetime-local', required: false },
                       { key: 'time_slot', placeholder: 'Time Slot (e.g. 7PM-9PM)', type: 'text', required: false },
                     ].map(({ key, placeholder, type, required }) => (
-                      <input
-                        key={key}
-                        type={type}
-                        placeholder={placeholder}
-                        value={resForm[key]}
-                        onChange={(e) => setResForm({ ...resForm, [key]: e.target.value })}
-                        required={required}
-                        className="input-glass"
-                        style={{ padding: '11px 14px', borderRadius: '12px', fontSize: '13px' }}
-                      />
+                      <input key={key} type={type} placeholder={placeholder} value={resForm[key]} onChange={(e) => setResForm({ ...resForm, [key]: e.target.value })} required={required} className="input-glass" style={{ padding: '11px 14px', borderRadius: '12px', fontSize: '13px' }} />
                     ))}
-                    <input
-                      placeholder="Notes (optional)"
-                      value={resForm.notes}
-                      onChange={(e) => setResForm({ ...resForm, notes: e.target.value })}
-                      className="input-glass"
-                      style={{ padding: '11px 14px', borderRadius: '12px', fontSize: '13px', gridColumn: '1 / -1' }}
-                    />
+                    <input placeholder="Notes (optional)" value={resForm.notes} onChange={(e) => setResForm({ ...resForm, notes: e.target.value })} className="input-glass" style={{ padding: '11px 14px', borderRadius: '12px', fontSize: '13px', gridColumn: '1 / -1' }} />
                   </div>
-                  <motion.button
-                    type="submit"
-                    whileTap={{ scale: 0.97 }}
-                    style={{ padding: '12px 28px', borderRadius: '12px', color: 'white', fontWeight: 600, fontSize: '13px', cursor: 'pointer', border: 'none', background: 'linear-gradient(135deg,#fb923c,#f43f5e)', boxShadow: '0 4px 14px rgba(251,146,60,0.3)' }}
-                  >
-                    Book Now
-                  </motion.button>
+                  <motion.button type="submit" whileTap={{ scale: 0.97 }} style={{ padding: '12px 28px', borderRadius: '12px', color: 'white', fontWeight: 600, fontSize: '13px', cursor: 'pointer', border: 'none', background: 'linear-gradient(135deg,#fb923c,#f43f5e)', boxShadow: '0 4px 14px rgba(251,146,60,0.3)' }}>Book Now</motion.button>
                 </form>
               </div>
 
@@ -457,9 +347,7 @@ export default function CustomerDashboard() {
                         </p>
                       </div>
                     </div>
-                    <span style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '20px', background: res.status === 'CONFIRMED' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: res.status === 'CONFIRMED' ? '#4ade80' : '#f87171', fontWeight: 500 }}>
-                      {res.status}
-                    </span>
+                    <span style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '20px', background: res.status === 'CONFIRMED' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: res.status === 'CONFIRMED' ? '#4ade80' : '#f87171', fontWeight: 500 }}>{res.status}</span>
                   </motion.div>
                 ))}
               </div>
