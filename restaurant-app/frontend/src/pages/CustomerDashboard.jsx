@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { UtensilsCrossed, ShoppingBag, CalendarDays, LogOut, ChefHat, Search, Plus, Minus, Trash2, Truck, CreditCard, Banknote, Package, MapPin, BadgePercent, TicketPercent } from 'lucide-react';
 import AnimatedBackground from '../components/AnimatedBackground';
@@ -31,9 +31,36 @@ export default function CustomerDashboard() {
   const [loading, setLoading] = useState(false);
   const [resForm, setResForm] = useState({ table_id: '', date_time: '', time_slot: '', guests: '', notes: '' });
   const navigate = useNavigate();
+  const location = useLocation();
   const userName = localStorage.getItem('userName') || 'Guest';
 
   useEffect(() => { fetchData(); }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const paymentStatus = params.get('payment');
+    const orderId = params.get('order');
+
+    if (paymentStatus === 'success' && orderId) {
+      confirmStripePayment(orderId);
+    } else if (paymentStatus === 'cancel') {
+      toast.error('Payment cancelled');
+      window.history.replaceState({}, '', '/customer');
+    }
+  }, [location.search]);
+
+  const confirmStripePayment = async (orderId) => {
+    try {
+      await api.post('/payments/stripe/confirm', { orderId });
+      toast.success('Payment confirmed! Order placed.');
+      setActiveTab('orders');
+      await fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Payment confirmation failed');
+    } finally {
+      window.history.replaceState({}, '', '/customer');
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -114,20 +141,29 @@ export default function CustomerDashboard() {
     if (deliveryMethod === 'delivery' && !phone.trim()) return toast.error('Please enter phone number');
     setLoading(true);
     try {
+      const orderRes = await api.post('/orders', buildOrderPayload(paymentMethod));
+      const order = orderRes.data;
+
       if (paymentMethod === 'cash') {
-        await api.post('/orders', buildOrderPayload('cash'));
         toast.success('Order placed successfully');
         clearCart();
         setActiveTab('orders');
         await fetchData();
         return;
       }
+
       const res = await api.post('/payments/stripe/create-checkout-session', {
         items: cart,
         deliveryMethod,
+        orderId: order.id,
       });
-      if (res.data?.url) window.location.href = res.data.url;
-      else toast.error('Stripe checkout unavailable');
+
+      if (res.data?.url) {
+        clearCart();
+        window.location.href = res.data.url;
+      } else {
+        toast.error('Stripe checkout unavailable');
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to place order');
     } finally {
@@ -162,6 +198,8 @@ export default function CustomerDashboard() {
     };
     return map[key] || map.pending;
   };
+
+  const imgSrc = (item) => item.image_url ? `http://localhost:5000${item.image_url}` : null;
 
   return (
     <div style={{ minHeight: '100vh', position: 'relative' }}>
@@ -233,19 +271,32 @@ export default function CustomerDashboard() {
                 {filteredMenu.map((item, i) => {
                   const available = item.is_available === undefined ? true : !!item.is_available;
                   return (
-                    <motion.div key={item.id} className="glass-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} whileHover={{ y: -5, scale: 1.02 }} style={{ borderRadius: '18px', padding: '20px', opacity: available ? 1 : 0.7, position: 'relative' }}>
-                      <div style={{ position: 'absolute', right: 14, top: 14, display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                        <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '20px', background: 'rgba(251,146,60,0.14)', color: '#fb923c' }}>{item.category || 'Food'}</span>
-                        <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '20px', background: available ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: available ? '#4ade80' : '#f87171' }}>{available ? 'Available' : 'Unavailable'}</span>
+                    <motion.div key={item.id} className="glass-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} whileHover={{ y: -5, scale: 1.02 }} style={{ borderRadius: '18px', padding: 0, opacity: available ? 1 : 0.7, overflow: 'hidden' }}>
+                      <div style={{ position: 'relative', width: '100%', aspectRatio: '4 / 3', background: 'linear-gradient(135deg, rgba(251,146,60,0.18), rgba(244,63,94,0.12))', overflow: 'hidden' }}>
+                        {imgSrc(item) ? (
+                          <img
+                            src={imgSrc(item)}
+                            alt={item.name}
+                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}
+                          />
+                        ) : (
+                          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <UtensilsCrossed size={30} color="#fb923c" />
+                          </div>
+                        )}
+                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 35%, rgba(0,0,0,0) 100%)' }} />
+                        <div style={{ position: 'absolute', right: 10, top: 10, display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                          <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '20px', background: 'rgba(0,0,0,0.55)', color: '#fb923c', backdropFilter: 'blur(6px)' }}>{item.category || 'Food'}</span>
+                          <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '20px', background: 'rgba(0,0,0,0.55)', color: available ? '#4ade80' : '#f87171', backdropFilter: 'blur(6px)' }}>{available ? 'Available' : 'Unavailable'}</span>
+                        </div>
                       </div>
-                      <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(251,146,60,0.12)', border: '1px solid rgba(251,146,60,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '14px' }}>
-                        <UtensilsCrossed size={20} color="#fb923c" />
-                      </div>
-                      <h3 style={{ color: 'white', fontSize: '15px', fontWeight: 600, marginBottom: '4px' }}>{item.name}</h3>
-                      <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '12px', marginBottom: '12px', lineHeight: 1.4 }}>{item.description || 'Freshly prepared item'}</p>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                        <span style={{ color: '#fb923c', fontWeight: 700, fontSize: '16px' }}>Rs. {Number(item.price).toFixed(2)}</span>
-                        <button disabled={!available} onClick={() => addToCart(item)} style={{ padding: '8px 12px', borderRadius: '10px', border: 'none', cursor: available ? 'pointer' : 'not-allowed', color: 'white', background: 'linear-gradient(135deg,#fb923c,#f43f5e)', opacity: available ? 1 : 0.5 }}>Add</button>
+                      <div style={{ padding: '16px' }}>
+                        <h3 style={{ color: 'white', fontSize: '15px', fontWeight: 600, marginBottom: '4px' }}>{item.name}</h3>
+                        <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '12px', marginBottom: '12px', lineHeight: 1.4 }}>{item.description || 'Freshly prepared item'}</p>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                          <span style={{ color: '#fb923c', fontWeight: 700, fontSize: '16px' }}>Rs. {Number(item.price).toFixed(2)}</span>
+                          <button disabled={!available} onClick={() => addToCart(item)} style={{ padding: '8px 12px', borderRadius: '10px', border: 'none', cursor: available ? 'pointer' : 'not-allowed', color: 'white', background: 'linear-gradient(135deg,#fb923c,#f43f5e)', opacity: available ? 1 : 0.5 }}>Add</button>
+                        </div>
                       </div>
                     </motion.div>
                   );
@@ -274,7 +325,7 @@ export default function CustomerDashboard() {
                 <div className="glass" style={{ padding: 16, borderRadius: 14, marginBottom: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, color: 'rgba(255,255,255,0.7)' }}><span>Subtotal</span><span>Rs. {subtotal.toFixed(2)}</span></div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, color: 'rgba(255,255,255,0.7)' }}><span>Delivery</span><span>Rs. {deliveryFee.toFixed(2)}</span></div>
-                  <div style={{ display: 'flex', justifyContent: 'between', marginBottom: 8, color: 'rgba(255,255,255,0.7)' }}><span>Tax</span><span>Rs. {tax.toFixed(2)}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, color: 'rgba(255,255,255,0.7)' }}><span>Tax</span><span>Rs. {tax.toFixed(2)}</span></div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, color: 'rgba(255,255,255,0.7)' }}><span>Discount</span><span>- Rs. {discount.toFixed(2)}</span></div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', color: 'white', fontWeight: 700 }}><span>Total</span><span>Rs. {total.toFixed(2)}</span></div>
                 </div>

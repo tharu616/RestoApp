@@ -42,6 +42,7 @@ const mapRow = (row) => ({
   price: row.price,
   category: row.category,
   image: row.image ?? null,
+  image_url: row.image ? `/uploads/menu/${row.image}` : null,
   is_available: row.is_available,
   available: row.is_available,
 });
@@ -63,12 +64,13 @@ exports.create = async (req, res) => {
     const isAvailExists = await hasColumn('is_available');
     const availExists = await hasColumn('available');
     const available = boolish(req.body.is_available ?? req.body.available, true);
+    const uploadedImage = req.file ? req.file.filename : null;
 
     const cols = ['name', 'description', 'price', 'category'];
     const vals = [name, description || null, price, category];
     const placeholders = ['$1', '$2', '$3', '$4'];
 
-    if (imageExists) { cols.push('image'); vals.push(req.body.image || null); placeholders.push(`$${vals.length}`); }
+    if (imageExists) { cols.push('image'); vals.push(uploadedImage); placeholders.push(`$${vals.length}`); }
     if (isAvailExists) { cols.push('is_available'); vals.push(available); placeholders.push(`$${vals.length}`); }
     if (availExists) { cols.push('available'); vals.push(available); placeholders.push(`$${vals.length}`); }
 
@@ -90,6 +92,7 @@ exports.update = async (req, res) => {
     const isAvailExists = await hasColumn('is_available');
     const availExists = await hasColumn('available');
     const available = boolish(req.body.is_available ?? req.body.available, null);
+    const uploadedImage = req.file ? req.file.filename : null;
 
     const sets = [];
     const vals = [];
@@ -99,7 +102,7 @@ exports.update = async (req, res) => {
     push('description = COALESCE($?, description)', req.body.description ?? null);
     push('price = COALESCE($?, price)', req.body.price ?? null);
     push('category = COALESCE($?, category)', req.body.category ?? null);
-    if (imageExists) push('image = COALESCE($?, image)', req.body.image ?? null);
+    if (imageExists) push('image = COALESCE($?, image)', uploadedImage);
     if (isAvailExists) push('is_available = COALESCE($?::boolean, is_available)', available);
     if (availExists) push('available = COALESCE($?::boolean, available)', available);
 

@@ -66,7 +66,7 @@ const create = async (req, res) => {
         address || null,
         phone || null,
         method,
-        method === 'cash' ? 'pending' : 'paid',
+        'pending',
       ]
     );
 
