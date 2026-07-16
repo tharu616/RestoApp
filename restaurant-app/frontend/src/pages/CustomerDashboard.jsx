@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { UtensilsCrossed, ShoppingBag, CalendarDays, LogOut, ChefHat, Search, Plus, Minus, Trash2, Truck, CreditCard, Banknote, Package, MapPin, BadgePercent, TicketPercent } from 'lucide-react';
 import AnimatedBackground from '../components/AnimatedBackground';
@@ -31,9 +31,36 @@ export default function CustomerDashboard() {
   const [loading, setLoading] = useState(false);
   const [resForm, setResForm] = useState({ table_id: '', date_time: '', time_slot: '', guests: '', notes: '' });
   const navigate = useNavigate();
+  const location = useLocation();
   const userName = localStorage.getItem('userName') || 'Guest';
 
   useEffect(() => { fetchData(); }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const paymentStatus = params.get('payment');
+    const orderId = params.get('order');
+
+    if (paymentStatus === 'success' && orderId) {
+      confirmStripePayment(orderId);
+    } else if (paymentStatus === 'cancel') {
+      toast.error('Payment cancelled');
+      window.history.replaceState({}, '', '/customer');
+    }
+  }, [location.search]);
+
+  const confirmStripePayment = async (orderId) => {
+    try {
+      await api.post('/payments/stripe/confirm', { orderId });
+      toast.success('Payment confirmed! Order placed.');
+      setActiveTab('orders');
+      await fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Payment confirmation failed');
+    } finally {
+      window.history.replaceState({}, '', '/customer');
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -114,20 +141,29 @@ export default function CustomerDashboard() {
     if (deliveryMethod === 'delivery' && !phone.trim()) return toast.error('Please enter phone number');
     setLoading(true);
     try {
+      const orderRes = await api.post('/orders', buildOrderPayload(paymentMethod));
+      const order = orderRes.data;
+
       if (paymentMethod === 'cash') {
-        await api.post('/orders', buildOrderPayload('cash'));
         toast.success('Order placed successfully');
         clearCart();
         setActiveTab('orders');
         await fetchData();
         return;
       }
+
       const res = await api.post('/payments/stripe/create-checkout-session', {
         items: cart,
         deliveryMethod,
+        orderId: order.id,
       });
-      if (res.data?.url) window.location.href = res.data.url;
-      else toast.error('Stripe checkout unavailable');
+
+      if (res.data?.url) {
+        clearCart();
+        window.location.href = res.data.url;
+      } else {
+        toast.error('Stripe checkout unavailable');
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to place order');
     } finally {
@@ -274,7 +310,7 @@ export default function CustomerDashboard() {
                 <div className="glass" style={{ padding: 16, borderRadius: 14, marginBottom: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, color: 'rgba(255,255,255,0.7)' }}><span>Subtotal</span><span>Rs. {subtotal.toFixed(2)}</span></div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, color: 'rgba(255,255,255,0.7)' }}><span>Delivery</span><span>Rs. {deliveryFee.toFixed(2)}</span></div>
-                  <div style={{ display: 'flex', justifyContent: 'between', marginBottom: 8, color: 'rgba(255,255,255,0.7)' }}><span>Tax</span><span>Rs. {tax.toFixed(2)}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, color: 'rgba(255,255,255,0.7)' }}><span>Tax</span><span>Rs. {tax.toFixed(2)}</span></div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, color: 'rgba(255,255,255,0.7)' }}><span>Discount</span><span>- Rs. {discount.toFixed(2)}</span></div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', color: 'white', fontWeight: 700 }}><span>Total</span><span>Rs. {total.toFixed(2)}</span></div>
                 </div>
