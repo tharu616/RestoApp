@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChefHat, Search, ArrowLeft, UtensilsCrossed } from 'lucide-react';
 
 const BG = 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=1920&q=80';
+const API_ORIGIN = 'http://localhost:5000';
 
 export default function PublicMenu() {
   const [items, setItems] = useState([]);
@@ -13,7 +14,7 @@ export default function PublicMenu() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    axios.get('http://localhost:5000/api/menu').then(res => setItems(res.data));
+    axios.get(`${API_ORIGIN}/api/menu`).then(res => setItems(res.data));
   }, []);
 
   const categories = ['ALL', ...new Set(items.map(i => i.category).filter(Boolean))];
@@ -22,6 +23,8 @@ export default function PublicMenu() {
     const matchCat = category === 'ALL' || item.category === category;
     return matchSearch && matchCat && item.is_available;
   });
+
+  const imgSrc = (item) => item.image_url ? `${API_ORIGIN}${item.image_url}` : null;
 
   return (
     <div style={{ minHeight: '100vh', position: 'relative' }}>
@@ -84,10 +87,10 @@ export default function PublicMenu() {
                 transition={{ delay: i * 0.05 }} whileHover={{ y: -6, scale: 1.02 }}
                 style={{ borderRadius: '20px', overflow: 'hidden', background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}>
 
-                {/* Image Placeholder */}
+                {/* Image */}
                 <div style={{ height: '160px', background: 'linear-gradient(135deg, rgba(251,146,60,0.15), rgba(239,68,68,0.1))', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                  {item.image_url ? (
-                    <img src={item.image_url} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  {imgSrc(item) ? (
+                    <img src={imgSrc(item)} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
                     <UtensilsCrossed size={36} color="rgba(251,146,60,0.4)" />
                   )}

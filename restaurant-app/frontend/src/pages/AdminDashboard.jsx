@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { gsap } from 'gsap';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
   UtensilsCrossed, ShoppingBag, CalendarDays, Users,
@@ -12,9 +11,10 @@ import OrdersManager from '../components/OrdersManager';
 import ReservationsManager from '../components/ReservationsManager';
 import StaffManager from '../components/StaffManager';
 import CustomersManager from '../components/CustomersManager';
+import MenuManager from '../components/staff/MenuManager';
+import api from '../api/axios';
 import toast from 'react-hot-toast';
 
-const API = 'http://localhost:5000/api';
 const normalize = (v) => String(v || '').toLowerCase();
 const paymentLabel = (order) => {
   const pm = normalize(order.payment_method || order.paymentMethod);
@@ -32,9 +32,6 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const headerRef = useRef(null);
 
-  const token = localStorage.getItem('accessToken');
-  const headers = { Authorization: `Bearer ${token}` };
-
   useEffect(() => {
     gsap.fromTo(
       headerRef.current,
@@ -47,10 +44,10 @@ export default function AdminDashboard() {
   const fetchAll = async () => {
     try {
       const [menuRes, ordersRes, reservRes, custRes] = await Promise.all([
-        axios.get(`${API}/menu`),
-        axios.get(`${API}/orders`, { headers }),
-        axios.get(`${API}/reservations`, { headers }),
-        axios.get(`${API}/customers`, { headers }),
+        api.get('/menu'),
+        api.get('/orders'),
+        api.get('/reservations'),
+        api.get('/customers'),
       ]);
       setMenuItems(menuRes.data || []);
       setOrders(ordersRes.data || []);
@@ -277,149 +274,13 @@ export default function AdminDashboard() {
             </motion.div>
           )}
 
-          {activeTab === 'menu' && <MenuManager token={token} />}
-          {activeTab === 'orders' && <OrdersManager token={token} />}
-          {activeTab === 'reservations' && <ReservationsManager token={token} />}
-          {activeTab === 'staff' && <StaffManager token={token} />}
-          {activeTab === 'customers' && <CustomersManager token={token} />}
+          {activeTab === 'menu' && <MenuManager />}
+          {activeTab === 'orders' && <OrdersManager />}
+          {activeTab === 'reservations' && <ReservationsManager />}
+          {activeTab === 'staff' && <StaffManager />}
+          {activeTab === 'customers' && <CustomersManager />}
         </div>
       </div>
     </div>
-  );
-}
-
-function MenuManager({ token }) {
-  const [items, setItems] = useState([]);
-  const [form, setForm] = useState({ name: '', description: '', price: '', category: '', is_available: true });
-  const headers = { Authorization: `Bearer ${token}` };
-
-  useEffect(() => { fetchMenu(); }, []);
-
-  const fetchMenu = async () => {
-    const res = await axios.get(`${API}/menu`);
-    setItems(res.data || []);
-  };
-
-  const handleAdd = async (e) => {
-    e.preventDefault();
-    try {
-      await axios.post(`${API}/menu`, form, { headers });
-      toast.success('Menu item added!');
-      fetchMenu();
-      setForm({ name: '', description: '', price: '', category: '', is_available: true });
-    } catch {
-      toast.error('Failed to add item');
-    }
-  };
-
-  const handleDelete = async (id) => {
-    try {
-      await axios.delete(`${API}/menu/${id}`, { headers });
-      toast.success('Item deleted');
-      fetchMenu();
-    } catch {
-      toast.error('Failed to delete');
-    }
-  };
-
-  return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '20px' }}>
-      <div className="glass-card" style={{ borderRadius: '20px', padding: '22px', alignSelf: 'start' }}>
-        <h3 style={{ color: 'white', fontWeight: 600, fontSize: '15px', marginBottom: '16px' }}>Add Menu Item</h3>
-        <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {[
-            { key: 'name', placeholder: 'Dish Name', required: true },
-            { key: 'description', placeholder: 'Description', required: false },
-            { key: 'price', placeholder: 'Price (Rs.)', required: true },
-            { key: 'category', placeholder: 'Category', required: true },
-          ].map(({ key, placeholder, required }) => (
-            <input
-              key={key}
-              placeholder={placeholder}
-              value={form[key]}
-              onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-              required={required}
-              className="input-glass"
-              style={{ padding: '12px 14px', borderRadius: '12px', fontSize: '13px' }}
-            />
-          ))}
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'rgba(255,255,255,0.5)', fontSize: '13px', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={form.is_available}
-              onChange={(e) => setForm({ ...form, is_available: e.target.checked })}
-              style={{ width: '15px', height: '15px', accentColor: '#fb923c' }}
-            />
-            Available on menu
-          </label>
-          <motion.button
-            type="submit"
-            whileTap={{ scale: 0.97 }}
-            className="liquid-btn"
-            style={{ padding: '12px', borderRadius: '12px', color: 'white', fontWeight: 600, fontSize: '13px', cursor: 'pointer', border: 'none' }}
-          >
-            Add Item
-          </motion.button>
-        </form>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '14px', alignContent: 'start' }}>
-        {items.map((item, i) => (
-          <motion.div
-            key={item.id}
-            className="glass-card"
-            initial={{ opacity: 0, scale: 0.93 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: i * 0.04 }}
-            whileHover={{ y: -5 }}
-            style={{ borderRadius: '18px', padding: '18px' }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-              <h4 style={{ color: 'white', fontWeight: 600, fontSize: '14px', flex: 1, marginRight: '8px' }}>{item.name}</h4>
-              <motion.button
-                onClick={() => handleDelete(item.id)}
-                whileTap={{ scale: 0.85 }}
-                style={{
-                  width: '26px',
-                  height: '26px',
-                  borderRadius: '8px',
-                  background: 'rgba(239,68,68,0.12)',
-                  border: '1px solid rgba(239,68,68,0.2)',
-                  color: '#f87171',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '14px',
-                  flexShrink: 0,
-                }}
-              >
-                ✕
-              </motion.button>
-            </div>
-            {item.description && (
-              <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '12px', marginBottom: '12px', lineHeight: 1.4 }}>
-                {item.description}
-              </p>
-            )}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <span style={{ color: '#fb923c', fontWeight: 700, fontSize: '15px' }}>Rs. {item.price}</span>
-              <span
-                style={{
-                  fontSize: '11px',
-                  padding: '3px 9px',
-                  borderRadius: '20px',
-                  background: item.is_available ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
-                  color: item.is_available ? '#4ade80' : '#f87171',
-                }}
-              >
-                {item.is_available ? 'Available' : 'Unavailable'}
-              </span>
-            </div>
-            <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '11px' }}>{item.category}</p>
-          </motion.div>
-        ))}
-      </div>
-    </motion.div>
   );
 }
